@@ -1,27 +1,6 @@
 import type { Item, Realm, XmlPosition, ArmorType, WeaponType, DamageType } from '@/types';
 import { DOMParser as XmldomParser } from '@xmldom/xmldom';
 
-// interface ParsedEffect {
-//   id: string;
-//   value: number;
-// }
-
-// interface ParsedItem {
-//   name: string;
-//   position: XmlPosition;
-//   realm: Realm | null;
-//   level: number;
-//   quality: number;
-//   armorType: ArmorType | null;
-//   armorAF: number | null;
-//   weaponType: WeaponType | null;
-//   damageType: DamageType | null;
-//   effects: ParsedEffect[];
-//   classRestrictions: string[];
-//   origin: string;
-//   onlineUrl: string;
-// }
-
 export function parseItemsXml(xmlString: string): Item[] {
   const items: Item[] = [];
   const ParserCtor: any = (typeof DOMParser !== 'undefined') ? DOMParser : XmldomParser;
@@ -38,18 +17,18 @@ export function parseItemsXml(xmlString: string): Item[] {
     ? Array.from(doc.querySelectorAll('item'))
     : Array.from(doc.getElementsByTagName ? doc.getElementsByTagName('item') : []);
 
-  (rawItems as Element[]).forEach((itemEl: Element, index: number) => {
+  (rawItems as Element[]).forEach((itemEl: Element) => {
     try {
-      const item = parseItemElement(itemEl, index);
+      const item = parseItemElement(itemEl);
       if (item) items.push(item);
     } catch (error) {
-      console.warn(`Failed to parse item at index ${index}:`, error);
+      console.warn('Failed to parse item:', error);
     }
   });
   return items;
 }
 
-function parseItemElement(itemEl: any, index: number): Item | null {
+function parseItemElement(itemEl: any): Item | null {
   const name = getElementText(itemEl, 'name');
   if (!name) return null;
   const position = getElementText(itemEl, 'position') as XmlPosition;
@@ -80,8 +59,10 @@ function parseItemElement(itemEl: any, index: number): Item | null {
   });
   const origin = getElementText(itemEl, 'origin') || '';
   const onlineUrl = getElementText(itemEl, 'online_url') || '';
+  // Deterministic ID based on item properties for stable references across re-parses
+  const id = `${(realm || 'any').toLowerCase()}_${position.toLowerCase()}_${name.replace(/\s+/g, '_').toLowerCase()}`;
   return {
-    id: `item_${index}_${Date.now()}`,
+    id,
     name,
     position,
     realm,
@@ -131,35 +112,3 @@ function cleanOrigin(origin: string): string {
     .trim();
 }
 
-export async function loadItemsFromUrl(url: string): Promise<Item[]> {
-  try {
-    const response = await fetch(url);
-    if (!response.ok) throw new Error(`Failed to load ${url}: ${response.status}`);
-    const xmlText = await response.text();
-    return parseItemsXml(xmlText);
-  } catch (error) {
-    console.error(`Error loading items from ${url}:`, error);
-    return [];
-  }
-}
-
-export async function loadAllItems(urls: string[]): Promise<Item[]> {
-  const allItems: Item[] = [];
-  for (const url of urls) {
-    const items = await loadItemsFromUrl(url);
-    allItems.push(...items);
-  }
-  const seen = new Set<string>();
-  return allItems.filter(item => {
-    const key = `${item.name}_${item.position}`;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-}
-
-export const DEFAULT_XML_PATHS = [
-  '/data/items_alb.xml',
-  '/data/items_hib.xml',
-  '/data/items_mid.xml',
-];

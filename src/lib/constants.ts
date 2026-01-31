@@ -197,8 +197,13 @@ export const ARMOR_TYPES: ArmorType[] = [
   'CHAIN', 'SCALE', 'PLATE', 'MAGICAL'
 ];
 
-// Weapon type classifications
-export const TWO_HANDED_WEAPON_TYPES = ['TWO_HAND', 'POLEARM', 'STAFF', 'LARGE_WEAPONRY'] as const;
+// Weapon type classifications (includes all realm-specific names)
+// Albion: TWO_HAND, POLEARM, STAFF | Hibernia: LARGE_WEAPON, SCYTHE, STAFF | Midgard: SWORD_2H, AXE_2H, HAMMER_2H, STAFF
+export const TWO_HANDED_WEAPON_TYPES = [
+  'TWO_HAND', 'POLEARM', 'STAFF', 'LARGE_WEAPONRY',
+  'LARGE_WEAPON', 'SCYTHE',
+  'SWORD_2H', 'AXE_2H', 'HAMMER_2H',
+] as const;
 export const SHIELD_WEAPON_TYPES = ['SHIELD_SMALL', 'SHIELD_MEDIUM', 'SHIELD_LARGE'] as const;
 export const RANGED_WEAPON_TYPES = ['LONGBOW', 'CROSSBOW', 'SHORTBOW'] as const;
 // Everything else in WEAPONS that isn't 2H, shield, or ranged is considered 1H
@@ -256,7 +261,7 @@ export const CLASS_ARMOR_TYPES: Record<string, ArmorType[]> = {
   Warlock:      ['CLOTH'],
 };
 
-// Which weapon types each class can use
+// Which weapon types each class can use (includes realm-specific XML names)
 export const CLASS_WEAPON_TYPES: Record<string, string[]> = {
   // Albion
   Armsman:      ['SLASH', 'CRUSH', 'THRUST', 'TWO_HAND', 'POLEARM', 'CROSSBOW', 'SHIELD_SMALL', 'SHIELD_MEDIUM', 'SHIELD_LARGE'],
@@ -274,32 +279,32 @@ export const CLASS_WEAPON_TYPES: Record<string, string[]> = {
   Sorcerer:     ['STAFF'],
   Theurgist:    ['STAFF'],
   Wizard:       ['STAFF'],
-  // Hibernia
-  Hero:         ['SLASH', 'CRUSH', 'THRUST', 'LARGE_WEAPONRY', 'SHORTBOW', 'SHIELD_SMALL', 'SHIELD_MEDIUM', 'SHIELD_LARGE'],
-  Champion:     ['SLASH', 'CRUSH', 'THRUST', 'LARGE_WEAPONRY', 'SHIELD_SMALL', 'SHIELD_MEDIUM'],
-  Warden:       ['SLASH', 'CRUSH', 'SHIELD_SMALL', 'SHIELD_MEDIUM'],
-  Druid:        ['SLASH', 'CRUSH', 'SHIELD_SMALL', 'SHIELD_MEDIUM'],
-  Blademaster:  ['SLASH', 'CRUSH', 'THRUST', 'SLASH_LEFT', 'CRUSH_LEFT', 'THRUST_LEFT', 'SHIELD_SMALL'],
-  Bard:         ['SLASH', 'CRUSH', 'SHIELD_SMALL'],
-  Ranger:       ['SLASH', 'THRUST', 'SHORTBOW', 'SHIELD_SMALL'],
-  Nightshade:   ['SLASH', 'THRUST', 'SLASH_LEFT', 'THRUST_LEFT'],
+  // Hibernia (BLADES=slash, BLUNT=crush, PIERCE=thrust, LARGE_WEAPON=2H)
+  Hero:         ['BLADES', 'BLUNT', 'PIERCE', 'LARGE_WEAPON', 'SHORTBOW', 'SHIELD_SMALL', 'SHIELD_MEDIUM', 'SHIELD_LARGE'],
+  Champion:     ['BLADES', 'BLUNT', 'PIERCE', 'LARGE_WEAPON', 'SHIELD_SMALL', 'SHIELD_MEDIUM'],
+  Warden:       ['BLADES', 'BLUNT', 'SHIELD_SMALL', 'SHIELD_MEDIUM'],
+  Druid:        ['BLADES', 'BLUNT', 'SHIELD_SMALL', 'SHIELD_MEDIUM'],
+  Blademaster:  ['BLADES', 'BLUNT', 'PIERCE', 'SHIELD_SMALL'],
+  Bard:         ['BLADES', 'BLUNT', 'SHIELD_SMALL'],
+  Ranger:       ['BLADES', 'PIERCE', 'SHORTBOW', 'SHIELD_SMALL'],
+  Nightshade:   ['BLADES', 'PIERCE'],
   Animist:      ['STAFF'],
   Bainshee:     ['STAFF'],
   Eldritch:     ['STAFF'],
   Enchanter:    ['STAFF'],
   Mentalist:    ['STAFF'],
-  Valewalker:   ['TWO_HAND', 'STAFF'],
-  // Midgard
-  Warrior:      ['SLASH', 'CRUSH', 'THRUST', 'TWO_HAND', 'SHIELD_SMALL', 'SHIELD_MEDIUM', 'SHIELD_LARGE'],
-  Thane:        ['SLASH', 'CRUSH', 'THRUST', 'TWO_HAND', 'SHIELD_SMALL', 'SHIELD_MEDIUM'],
-  Skald:        ['SLASH', 'CRUSH', 'THRUST', 'TWO_HAND'],
-  Valkyrie:     ['SLASH', 'CRUSH', 'THRUST', 'TWO_HAND', 'SHIELD_SMALL', 'SHIELD_MEDIUM'],
-  Healer:       ['CRUSH', 'SLASH', 'SHIELD_SMALL', 'SHIELD_MEDIUM'],
-  Shaman:       ['CRUSH', 'STAFF', 'SHIELD_SMALL'],
-  Berserker:    ['SLASH', 'CRUSH', 'THRUST', 'SLASH_LEFT', 'CRUSH_LEFT', 'THRUST_LEFT', 'TWO_HAND'],
-  Savage:       ['SLASH', 'CRUSH', 'THRUST', 'SLASH_LEFT', 'CRUSH_LEFT', 'THRUST_LEFT'],
-  Hunter:       ['SLASH', 'THRUST', 'SHORTBOW', 'SHIELD_SMALL'],
-  Shadowblade:  ['SLASH', 'THRUST', 'SLASH_LEFT', 'THRUST_LEFT'],
+  Valewalker:   ['SCYTHE', 'STAFF'],
+  // Midgard (SWORD=slash, HAMMER=crush, AXE=slash, CLAWS=thrust)
+  Warrior:      ['SWORD', 'AXE', 'HAMMER', 'SWORD_2H', 'AXE_2H', 'HAMMER_2H', 'SHIELD_SMALL', 'SHIELD_MEDIUM', 'SHIELD_LARGE'],
+  Thane:        ['SWORD', 'AXE', 'HAMMER', 'SWORD_2H', 'AXE_2H', 'HAMMER_2H', 'SHIELD_SMALL', 'SHIELD_MEDIUM'],
+  Skald:        ['SWORD', 'AXE', 'HAMMER', 'SWORD_2H', 'AXE_2H', 'HAMMER_2H'],
+  Valkyrie:     ['SWORD', 'AXE', 'HAMMER', 'SWORD_2H', 'SHIELD_SMALL', 'SHIELD_MEDIUM'],
+  Healer:       ['HAMMER', 'SWORD', 'SHIELD_SMALL', 'SHIELD_MEDIUM'],
+  Shaman:       ['HAMMER', 'STAFF', 'SHIELD_SMALL'],
+  Berserker:    ['SWORD', 'AXE', 'HAMMER', 'CLAWS', 'SWORD_2H', 'AXE_2H', 'HAMMER_2H'],
+  Savage:       ['SWORD', 'AXE', 'HAMMER', 'CLAWS'],
+  Hunter:       ['SWORD', 'CLAWS', 'SHORTBOW', 'SHIELD_SMALL'],
+  Shadowblade:  ['SWORD', 'AXE', 'CLAWS'],
   Bonedancer:   ['STAFF'],
   Runemaster:   ['STAFF'],
   Spiritmaster: ['STAFF'],
@@ -307,14 +312,25 @@ export const CLASS_WEAPON_TYPES: Record<string, string[]> = {
 };
 
 // Weapon type groups for the slot filter dropdown
-export const WEAPON_TYPE_GROUPS: { label: string; types: string[] }[] = [
-  { label: 'Slash', types: ['SLASH', 'SLASH_LEFT'] },
-  { label: 'Crush', types: ['CRUSH', 'CRUSH_LEFT'] },
-  { label: 'Thrust', types: ['THRUST', 'THRUST_LEFT'] },
-  { label: 'Two-Handed', types: ['TWO_HAND', 'POLEARM', 'LARGE_WEAPONRY', 'STAFF'] },
-  { label: 'Flexible', types: ['FLEXIBLE'] },
-  { label: 'Shield', types: ['SHIELD_SMALL', 'SHIELD_MEDIUM', 'SHIELD_LARGE'] },
-  { label: 'Ranged', types: ['LONGBOW', 'CROSSBOW', 'SHORTBOW'] },
+// matchBy: 'damage' checks item.damageType, 'weapon' checks item.weaponType
+export interface WeaponTypeGroup {
+  label: string;
+  types: string[];
+  matchBy: 'damage' | 'weapon';
+}
+
+export const WEAPON_TYPE_GROUPS: WeaponTypeGroup[] = [
+  { label: 'Slash', types: ['SLASH'], matchBy: 'damage' },
+  { label: 'Crush', types: ['CRUSH'], matchBy: 'damage' },
+  { label: 'Thrust', types: ['THRUST', 'TRUST'], matchBy: 'damage' },
+  { label: 'Two-Handed', types: [
+    'TWO_HAND', 'POLEARM', 'STAFF', 'LARGE_WEAPONRY',
+    'LARGE_WEAPON', 'SCYTHE',
+    'SWORD_2H', 'AXE_2H', 'HAMMER_2H',
+  ], matchBy: 'weapon' },
+  { label: 'Flexible', types: ['FLEXIBLE'], matchBy: 'weapon' },
+  { label: 'Shield', types: ['SHIELD_SMALL', 'SHIELD_MEDIUM', 'SHIELD_LARGE'], matchBy: 'weapon' },
+  { label: 'Ranged', types: ['LONGBOW', 'CROSSBOW', 'SHORTBOW'], matchBy: 'weapon' },
 ];
 
 export const XML_POS_TO_SLOTS: Record<string, string | string[]> = {
@@ -333,3 +349,79 @@ export const XML_POS_TO_SLOTS: Record<string, string | string[]> = {
   WEAPONS: ['mainHand', 'offHand', 'twoHand', 'ranged'],
   MYTHIRIAN: 'mythirian',
 };
+
+// Display name mappings for slot categories
+export const ARMOR_SLOT_DISPLAY: Record<string, string> = {
+  HELMETS: 'Head', CHEST: 'Chest', BRACERS: 'Arms', GLOVES: 'Hands',
+  LEGS: 'Legs', SHOES: 'Feet',
+};
+
+export const WEAPON_TYPE_DISPLAY: Record<string, string> = {
+  // Albion 1H
+  SLASH: 'Slash', SLASH_LEFT: 'Slash', CRUSH: 'Crush', CRUSH_LEFT: 'Crush',
+  THRUST: 'Thrust', THRUST_LEFT: 'Thrust',
+  // Hibernia 1H
+  BLADES: 'Blades', BLUNT: 'Blunt', PIERCE: 'Pierce',
+  // Midgard 1H
+  SWORD: 'Sword', AXE: 'Axe', HAMMER: 'Hammer', CLAWS: 'Claws',
+  // 2H (all realms)
+  TWO_HAND: '2H', POLEARM: 'Polearm', LARGE_WEAPONRY: 'Large',
+  LARGE_WEAPON: 'Large', SCYTHE: 'Scythe',
+  SWORD_2H: 'Sword 2H', AXE_2H: 'Axe 2H', HAMMER_2H: 'Hammer 2H',
+  STAFF: 'Staff', FLEXIBLE: 'Flex',
+  // Shield
+  SHIELD_SMALL: 'Shield S', SHIELD_MEDIUM: 'Shield M', SHIELD_LARGE: 'Shield L',
+  // Ranged
+  LONGBOW: 'Longbow', CROSSBOW: 'Xbow', SHORTBOW: 'Shortbow',
+};
+
+export const JEWELRY_DISPLAY: Record<string, string> = {
+  NECKLACE: 'Neck', CLOAK: 'Cloak', BELT: 'Belt', RINGS: 'Ring',
+  BRACELETS: 'Wrist', JEWEL: 'Jewel', MYTHIRIAN: 'Myth',
+};
+
+export function getSlotDisplay(item: { position: string; weaponType?: string }): string {
+  if (ARMOR_SLOT_DISPLAY[item.position]) {
+    return `A - ${ARMOR_SLOT_DISPLAY[item.position]}`;
+  }
+  if (item.position === 'WEAPONS') {
+    const wt = item.weaponType ? WEAPON_TYPE_DISPLAY[item.weaponType] || item.weaponType : '?';
+    return `W - ${wt}`;
+  }
+  if (JEWELRY_DISPLAY[item.position]) {
+    return `J - ${JEWELRY_DISPLAY[item.position]}`;
+  }
+  return item.position;
+}
+
+// Equipment grid layout definitions
+export const EQUIP_TOP_ROW = [
+  { id: 'mythirian', name: 'MYTHICAL' },
+  { id: 'necklace', name: 'NECK' },
+  { id: 'cloak', name: 'CLOAK' },
+] as const;
+
+export const EQUIP_LEFT_COL = [
+  { id: 'chest', name: 'BODY' },
+  { id: 'arms', name: 'ARMS' },
+  { id: 'gem', name: 'JEWEL' },
+  { id: 'ring1', name: 'L RING' },
+  { id: 'bracer1', name: 'L WRIST' },
+  { id: 'legs', name: 'LEGS' },
+] as const;
+
+export const EQUIP_RIGHT_COL = [
+  { id: 'head', name: 'HEAD' },
+  { id: 'hands', name: 'HANDS' },
+  { id: 'belt', name: 'WAIST' },
+  { id: 'ring2', name: 'R RING' },
+  { id: 'bracer2', name: 'R WRIST' },
+  { id: 'feet', name: 'FEET' },
+] as const;
+
+export const EQUIP_WEAPONS = [
+  { id: 'mainHand', name: 'R HAND' },
+  { id: 'offHand', name: 'L HAND' },
+  { id: 'twoHand', name: '2 HAND' },
+  { id: 'ranged', name: 'RANGED' },
+] as const;

@@ -1,6 +1,26 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+
+@theme {
+  /* DAoC custom colors */
+  --color-daoc-dark: #0f0f1a;
+  --color-daoc-darker: #0a0a12;
+  --color-daoc-blue: #1e40af;
+  --color-daoc-gold: #d4af37;
+
+  /* Realm colors */
+  --color-albion: #dc2626;
+  --color-hibernia: #16a34a;
+  --color-midgard: #2563eb;
+
+  /* Stat status colors */
+  --color-stat-capped: #22c55e;
+  --color-stat-near: #eab308;
+  --color-stat-normal: #3b82f6;
+  --color-stat-over: #f59e0b;
+
+  /* Custom animation */
+  --animate-pulse-slow: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {

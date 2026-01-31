@@ -1,17 +1,15 @@
-import type { Template, CalculatedStats } from '@/types';
+import type { Template, CalculatedStats, EffectCategory } from '@/types';
 import {
   STAT_EFFECTS, RESIST_EFFECTS, BONUS_EFFECTS, CAP_EFFECTS, SKILL_EFFECTS,
   RESIST_CAP, SKILL_CAP, BONUS_CAPS, MAX_CAP_BONUS, BASE_STAT_CAPS
 } from './constants';
 
-export type EffectCategory = 'stat' | 'resist' | 'bonus' | 'cap' | 'skill' | 'other';
-
 export function getEffectCategory(effectId: string): EffectCategory {
-  if (STAT_EFFECTS.includes(effectId as any)) return 'stat';
-  if (RESIST_EFFECTS.includes(effectId as any)) return 'resist';
-  if (BONUS_EFFECTS.includes(effectId as any)) return 'bonus';
-  if (CAP_EFFECTS.includes(effectId as any)) return 'cap';
-  if (SKILL_EFFECTS.includes(effectId as any)) return 'skill';
+  if ((STAT_EFFECTS as readonly string[]).includes(effectId)) return 'stat';
+  if ((RESIST_EFFECTS as readonly string[]).includes(effectId)) return 'resist';
+  if ((BONUS_EFFECTS as readonly string[]).includes(effectId)) return 'bonus';
+  if ((CAP_EFFECTS as readonly string[]).includes(effectId)) return 'cap';
+  if ((SKILL_EFFECTS as readonly string[]).includes(effectId)) return 'skill';
   return 'other';
 }
 

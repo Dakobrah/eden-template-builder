@@ -9,7 +9,15 @@
       "Bash(grep:*)",
       "Bash(npx tsc:*)",
       "Bash(npx vite build)",
-      "WebFetch(domain:eden-daoc.net)"
+      "WebFetch(domain:eden-daoc.net)",
+      "Bash(npx vitest run)",
+      "Bash(powershell -Command \"Select-String -Path ''public/moras_db/moras_items_eden_alb.xml'' -Pattern ''<weapon'' | Select-Object -First 30 | ForEach-Object { $_Line.Trim\\(\\) }\")",
+      "Bash(npx vitest:*)",
+      "Bash(node:*)",
+      "Bash(npm outdated:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(del postcss.config.js tailwind.config.js)",
+      "Bash(npx eslint:*)"
     ]
   }
 }

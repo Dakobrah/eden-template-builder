@@ -2,7 +2,7 @@ import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import type { Template, Item, SlotId } from '@/types';
 import { calculateStats, generateTemplateReport, calculateItemUtility } from './lib/statsCalculator';
 import { parseItemsXml } from './lib/itemParser';
-import { XML_POS_TO_SLOTS, TWO_HANDED_WEAPON_TYPES, SHIELD_WEAPON_TYPES, RANGED_WEAPON_TYPES, CLASS_ARMOR_TYPES, CLASS_WEAPON_TYPES, CLASSES_BY_REALM, CLASS_TO_REALM, BONUS_CAPS, SKILL_CAP, WEAPON_TYPE_GROUPS } from './lib/constants';
+import { XML_POS_TO_SLOTS, TWO_HANDED_WEAPON_TYPES, SHIELD_WEAPON_TYPES, RANGED_WEAPON_TYPES, CLASS_ARMOR_TYPES, CLASS_WEAPON_TYPES, CLASSES_BY_REALM, CLASS_TO_REALM, BONUS_CAPS, SKILL_CAP, WEAPON_TYPE_GROUPS, getSlotDisplay, EQUIP_TOP_ROW, EQUIP_LEFT_COL, EQUIP_RIGHT_COL, EQUIP_WEAPONS } from './lib/constants';
 
 // Realm color tinting utilities
 const REALM_COLORS: Record<string, { border: string; bg: string; text: string }> = {
@@ -13,6 +13,20 @@ const REALM_COLORS: Record<string, { border: string; bg: string; text: string }>
 const getRealmColors = (realm: string | null | undefined) => realm && REALM_COLORS[realm] ? REALM_COLORS[realm] : null;
 
 const generateId = () => `${Date.now()}_${Math.random().toString(36).slice(2,9)}`;
+
+// Cache for parsed XML results to avoid re-fetching on realm filter changes
+const xmlCache = new Map<string, Item[]>();
+
+async function fetchAndParseXml(url: string): Promise<Item[]> {
+  const cached = xmlCache.get(url);
+  if (cached) return cached;
+  const response = await fetch(url);
+  if (!response.ok) return [];
+  const text = await response.text();
+  const items = text ? parseItemsXml(text) : [];
+  xmlCache.set(url, items);
+  return items;
+}
 
 // Realm to XML file mapping
 const REALM_XML_FILES: Record<string, string[]> = {
@@ -41,18 +55,19 @@ interface ColumnDef {
   id: string;
   label: string;
   width: string;
-  defaultOn: boolean;
   getValue: (item: Item, utility: number) => string | number;
   getSortValue: (item: Item, utility: number) => string | number;
   align?: 'left' | 'center' | 'right';
 }
 
 const AVAILABLE_COLUMNS: ColumnDef[] = [
-  { id: 'name', label: 'Name', width: '1fr', defaultOn: true, align: 'left',
+  { id: 'name', label: 'Name', width: '1fr', align: 'left',
     getValue: (it) => it.name, getSortValue: (it) => it.name.toLowerCase() },
-  { id: 'level', label: 'Lvl', width: '50px', defaultOn: true, align: 'center',
+  { id: 'slot', label: 'Slot', width: '90px', align: 'center',
+    getValue: (it) => getSlotDisplay(it), getSortValue: (it) => getSlotDisplay(it) },
+  { id: 'level', label: 'Lvl', width: '40px', align: 'center',
     getValue: (it) => it.level || 50, getSortValue: (it) => it.level || 50 },
-  { id: 'utility', label: 'Util', width: '55px', defaultOn: true, align: 'center',
+  { id: 'utility', label: 'Util', width: '50px', align: 'center',
     getValue: (_, u) => u, getSortValue: (_, u) => u },
 ];
 
@@ -78,7 +93,13 @@ export default function App() {
       return [];
     }
   });
-  const [template, setTemplate] = useState<Template>(createEmptyTemplate());
+  const [template, setTemplate] = useState<Template>(() => {
+    try {
+      const raw = localStorage.getItem('currentTemplate');
+      if (raw) return JSON.parse(raw) as Template;
+    } catch { /* ignored */ }
+    return createEmptyTemplate();
+  });
   const [searchTerm, setSearchTerm] = useState('');
   const [templates, setTemplates] = useState<Template[]>(() => {
     try { const raw = localStorage.getItem('templates'); return raw ? JSON.parse(raw) : []; } catch { return []; }
@@ -103,32 +124,21 @@ export default function App() {
   const [sortColumn, setSortColumn] = useState<string>('utility');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
-  // Auto-load moras_db XMLs based on realm filter
+  // Auto-load moras_db XMLs based on realm filter (with caching)
   useEffect(() => {
     let cancelled = false;
     const xmlFiles = REALM_XML_FILES[filterRealm] || REALM_XML_FILES[''];
     setDbLoading(true);
-    Promise.all(
-      xmlFiles.map(url =>
-        fetch(url)
-          .then(r => r.ok ? r.text() : '')
-          .then(text => text ? parseItemsXml(text) : [])
-          .catch(() => [] as Item[])
-      )
-    ).then(results => {
-      if (cancelled) return;
-      const all = results.flat();
-      // Deduplicate by name+position
-      const seen = new Set<string>();
-      const deduped = all.filter(item => {
-        const key = `${item.name}_${item.position}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
+    Promise.all(xmlFiles.map(url => fetchAndParseXml(url).catch(() => [] as Item[])))
+      .then(results => {
+        if (cancelled) return;
+        const all = results.flat();
+        // Deduplicate by id (deterministic from name+position+realm)
+        const seen = new Map<string, Item>();
+        all.forEach(item => { if (!seen.has(item.id)) seen.set(item.id, item); });
+        setDbItems(Array.from(seen.values()));
+        setDbLoading(false);
       });
-      setDbItems(deduped);
-      setDbLoading(false);
-    });
     return () => { cancelled = true; };
   }, [filterRealm]);
 
@@ -154,9 +164,9 @@ export default function App() {
   // Determine weapon category from item
   const getWeaponCategory = useCallback((item: Item): 'twoHand' | 'shield' | 'ranged' | 'oneHand' => {
     const wt = item.weaponType || '';
-    if (TWO_HANDED_WEAPON_TYPES.includes(wt as any)) return 'twoHand';
-    if (SHIELD_WEAPON_TYPES.includes(wt as any)) return 'shield';
-    if (RANGED_WEAPON_TYPES.includes(wt as any)) return 'ranged';
+    if ((TWO_HANDED_WEAPON_TYPES as readonly string[]).includes(wt)) return 'twoHand';
+    if ((SHIELD_WEAPON_TYPES as readonly string[]).includes(wt)) return 'shield';
+    if ((RANGED_WEAPON_TYPES as readonly string[]).includes(wt)) return 'ranged';
     return 'oneHand';
   }, []);
 
@@ -191,25 +201,15 @@ export default function App() {
   useEffect(() => {
     try {
       localStorage.setItem('currentTemplate', JSON.stringify(template));
-    } catch {}
+    } catch { /* ignored */ }
   }, [template]);
 
   useEffect(() => {
     try {
       localStorage.setItem('ownedItems', JSON.stringify(ownedItems));
-    } catch {}
+    } catch { /* ignored */ }
   }, [ownedItems]);
 
-  // Load saved template (once)
-  useEffect(() => {
-    try {
-      const raw = localStorage.getItem('currentTemplate');
-      if (raw) {
-        const parsed = JSON.parse(raw) as Template;
-        setTemplate(parsed);
-      }
-    } catch {}
-  }, []);
 
   const combinedItems = useMemo(() => {
     const map = new Map<string, Item>();
@@ -230,8 +230,13 @@ export default function App() {
       if (filterSlot.startsWith('WT_')) {
         const wtKey = filterSlot.slice(3);
         const group = WEAPON_TYPE_GROUPS.find(g => g.types[0] === wtKey);
-        const allowedTypes = group ? group.types : [wtKey];
-        result = result.filter(it => it.position === 'WEAPONS' && allowedTypes.includes(it.weaponType || ''));
+        if (group) {
+          result = result.filter(it => {
+            if (it.position !== 'WEAPONS') return false;
+            const field = group.matchBy === 'damage' ? (it.damageType || '') : (it.weaponType || '');
+            return group.types.includes(field);
+          });
+        }
       } else {
         result = result.filter(it => it.position === filterSlot);
       }
@@ -300,26 +305,16 @@ export default function App() {
     return sorted;
   }, [filteredItems, sortColumn, sortDirection]);
 
+  const totalPages = Math.max(1, Math.ceil(sortedItems.length / itemsPerPage));
+
+  // Clamp currentPage when filtered results shrink below the current page
+  const effectivePage = Math.min(currentPage, totalPages);
+
   // Paginated items
   const paginatedItems = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
-    return sortedItems.slice(startIndex, endIndex);
-  }, [sortedItems, currentPage, itemsPerPage]);
-
-  const totalPages = Math.ceil(sortedItems.length / itemsPerPage);
-
-  // Reset to page 1 when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [filterRealm, filterSlot, filterClass, statFilters, searchTerm, ownedOnly]);
-
-  // Clear class filter if it no longer exists in the available classes for the new realm
-  useEffect(() => {
-    if (filterClass && !allClasses.includes(filterClass)) {
-      setFilterClass('');
-    }
-  }, [filterRealm, allClasses, filterClass]);
+    const startIndex = (effectivePage - 1) * itemsPerPage;
+    return sortedItems.slice(startIndex, startIndex + itemsPerPage);
+  }, [sortedItems, effectivePage, itemsPerPage]);
 
 
   // Toggle owned status for an item
@@ -332,7 +327,7 @@ export default function App() {
   }, []);
 
   // Template persistence and management
-  useEffect(() => { try { localStorage.setItem('templates', JSON.stringify(templates)); } catch {} }, [templates]);
+  useEffect(() => { try { localStorage.setItem('templates', JSON.stringify(templates)); } catch { /* ignored */ } }, [templates]);
 
   const saveCurrentTemplate = (name?: string) => {
     const tpl = { ...template };
@@ -404,6 +399,24 @@ export default function App() {
     alert('Share code copied to clipboard');
   };
 
+  const renderSlot = (slotId: string, slotName: string, dimmed = false) => {
+    const equipped = template.slots[slotId as SlotId];
+    const erc = equipped ? getRealmColors(equipped.realm) : null;
+    return (
+      <div key={slotId} className={`relative border rounded p-2.5 group min-h-[52px] ${dimmed ? 'opacity-40' : ''} ${erc ? `${erc.bg} ${erc.border} border-l-[3px]` : 'bg-gray-800 border-gray-700'}`}>
+        <div className="text-[10px] font-bold text-gray-400 mb-1.5 leading-tight">{slotName}</div>
+        <div className="text-xs text-gray-300 line-clamp-2 leading-tight pr-5" title={equipped?.name}>{equipped?.name || 'Empty'}</div>
+        {equipped && (
+          <button
+            className="absolute top-1.5 right-1.5 w-5 h-5 bg-red-600 rounded-full text-white text-xs opacity-0 group-hover:opacity-100 flex items-center justify-center hover:bg-red-700"
+            onClick={(e) => { e.stopPropagation(); unequip(slotId as SlotId); }}
+            title="Unequip"
+          >x</button>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen p-6">
       <div className="max-w-4xl mx-auto">
@@ -437,7 +450,14 @@ export default function App() {
                 <select
                   className="w-full px-2 py-1 bg-gray-900 border border-gray-700 rounded text-sm"
                   value={filterRealm}
-                  onChange={(e) => setFilterRealm(e.target.value)}
+                  onChange={(e) => {
+                    const newRealm = e.target.value;
+                    setFilterRealm(newRealm);
+                    // Clear class filter if it doesn't belong to the new realm
+                    if (filterClass && newRealm && newRealm !== 'Any' && CLASS_TO_REALM[filterClass] !== newRealm) {
+                      setFilterClass('');
+                    }
+                  }}
                 >
                   <option value="">All Realms</option>
                   <option value="Albion" style={{ color: '#f87171' }}>Albion</option>
@@ -493,8 +513,8 @@ export default function App() {
                       const realm = CLASS_TO_REALM[cls];
                       setTemplate(t => ({
                         ...t,
-                        characterClass: cls as any,
-                        realm: (realm as any) || t.realm,
+                        characterClass: cls as Template['characterClass'],
+                        realm: (realm as Template['realm']) || t.realm,
                         updatedAt: new Date().toISOString(),
                       }));
                       // Also set realm filter to match
@@ -695,10 +715,6 @@ export default function App() {
                       if (col.id === 'utility') {
                         return <div key={col.id} className="text-center text-sm text-blue-400">{val}</div>;
                       }
-                      if (col.id === 'realm') {
-                        const colRc = getRealmColors(it.realm);
-                        return <div key={col.id} className={`text-center text-xs ${colRc ? colRc.text : 'text-gray-400'}`}>{val}</div>;
-                      }
                       return (
                         <div key={col.id} className={`text-sm ${col.align === 'center' ? 'text-center' : col.align === 'right' ? 'text-right' : ''}`}>{val}</div>
                       );
@@ -757,16 +773,15 @@ export default function App() {
                 <button
                   className="px-3 py-1 bg-gray-700 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
+                  disabled={effectivePage === 1}
                 >Previous</button>
 
                 <div className="flex gap-1">
                   {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => {
-                    // Show first page, last page, current page, and pages around current
                     const showPage = page === 1 || page === totalPages ||
-                                    (page >= currentPage - 1 && page <= currentPage + 1);
-                    const showEllipsis = (page === currentPage - 2 && currentPage > 3) ||
-                                        (page === currentPage + 2 && currentPage < totalPages - 2);
+                                    (page >= effectivePage - 1 && page <= effectivePage + 1);
+                    const showEllipsis = (page === effectivePage - 2 && effectivePage > 3) ||
+                                        (page === effectivePage + 2 && effectivePage < totalPages - 2);
 
                     if (showEllipsis) return <span key={page} className="px-2">...</span>;
                     if (!showPage) return null;
@@ -775,7 +790,7 @@ export default function App() {
                       <button
                         key={page}
                         className={`px-2 py-1 rounded text-sm ${
-                          page === currentPage
+                          page === effectivePage
                             ? 'bg-blue-600 text-white'
                             : 'bg-gray-700 hover:bg-gray-600'
                         }`}
@@ -788,7 +803,7 @@ export default function App() {
                 <button
                   className="px-3 py-1 bg-gray-700 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                   onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
+                  disabled={effectivePage === totalPages}
                 >Next</button>
               </div>
             )}
@@ -806,117 +821,33 @@ export default function App() {
             <div className="relative bg-gray-900 p-4 rounded-lg space-y-3" onMouseEnter={() => setHoverItem(null)}>
               {/* Top Row - Mythirian, Neck, Cloak */}
               <div className="grid grid-cols-3 gap-3">
-                {[
-                  { id: 'mythirian', name: 'MYTHICAL' },
-                  { id: 'necklace', name: 'NECK' },
-                  { id: 'cloak', name: 'CLOAK' },
-                ].map(slot => {
-                  const equipped = template.slots[slot.id as SlotId];
-                  const erc = equipped ? getRealmColors(equipped.realm) : null;
-                  return (
-                    <div key={slot.id} className={`relative border rounded p-2.5 group min-h-[52px] ${erc ? `${erc.bg} ${erc.border} border-l-[3px]` : 'bg-gray-800 border-gray-700'}`}>
-                      <div className="text-[10px] font-bold text-gray-400 mb-1.5 leading-tight">{slot.name}</div>
-                      <div className="text-xs text-gray-300 line-clamp-2 leading-tight pr-5" title={equipped?.name}>{equipped?.name || 'Empty'}</div>
-                      {equipped && (
-                        <button
-                          className="absolute top-1.5 right-1.5 w-5 h-5 bg-red-600 rounded-full text-white text-xs opacity-0 group-hover:opacity-100 flex items-center justify-center hover:bg-red-700"
-                          onClick={(e) => { e.stopPropagation(); unequip(slot.id as SlotId); }}
-                          title="Unequip"
-                        >x</button>
-                      )}
-                    </div>
-                  );
-                })}
+                {EQUIP_TOP_ROW.map(s => renderSlot(s.id, s.name))}
               </div>
 
               {/* Middle - Left and Right armor columns */}
               <div className="grid grid-cols-2 gap-3">
                 {/* Left Column */}
                 <div className="flex flex-col gap-2.5">
-                  {[
-                    { id: 'chest', name: 'BODY' },
-                    { id: 'arms', name: 'ARMS' },
-                    { id: 'gem', name: 'JEWEL' },
-                    { id: 'ring1', name: 'L RING' },
-                    { id: 'bracer1', name: 'L WRIST' },
-                    { id: 'legs', name: 'LEGS' },
-                  ].map(slot => {
-                    const equipped = template.slots[slot.id as SlotId];
-                    const erc = equipped ? getRealmColors(equipped.realm) : null;
-                    return (
-                      <div key={slot.id} className={`relative border rounded p-2.5 group min-h-[52px] ${erc ? `${erc.bg} ${erc.border} border-l-[3px]` : 'bg-gray-800 border-gray-700'}`}>
-                        <div className="text-[10px] font-bold text-gray-400 mb-1.5 leading-tight">{slot.name}</div>
-                        <div className="text-xs text-gray-300 line-clamp-2 leading-tight pr-5" title={equipped?.name}>{equipped?.name || 'Empty'}</div>
-                        {equipped && (
-                          <button
-                            className="absolute top-1.5 right-1.5 w-5 h-5 bg-red-600 rounded-full text-white text-xs opacity-0 group-hover:opacity-100 flex items-center justify-center hover:bg-red-700"
-                            onClick={(e) => { e.stopPropagation(); unequip(slot.id as SlotId); }}
-                            title="Unequip"
-                          >x</button>
-                        )}
-                      </div>
-                    );
-                  })}
+                  {EQUIP_LEFT_COL.map(s => renderSlot(s.id, s.name))}
                 </div>
 
                 {/* Right Column */}
                 <div className="flex flex-col gap-2.5">
-                  {[
-                    { id: 'head', name: 'HEAD' },
-                    { id: 'hands', name: 'HANDS' },
-                    { id: 'belt', name: 'WAIST' },
-                    { id: 'ring2', name: 'R RING' },
-                    { id: 'bracer2', name: 'R WRIST' },
-                    { id: 'feet', name: 'FEET' },
-                  ].map(slot => {
-                    const equipped = template.slots[slot.id as SlotId];
-                    const erc = equipped ? getRealmColors(equipped.realm) : null;
-                    return (
-                      <div key={slot.id} className={`relative border rounded p-2.5 group min-h-[52px] ${erc ? `${erc.bg} ${erc.border} border-l-[3px]` : 'bg-gray-800 border-gray-700'}`}>
-                        <div className="text-[10px] font-bold text-gray-400 mb-1.5 leading-tight">{slot.name}</div>
-                        <div className="text-xs text-gray-300 line-clamp-2 leading-tight pr-5" title={equipped?.name}>{equipped?.name || 'Empty'}</div>
-                        {equipped && (
-                          <button
-                            className="absolute top-1.5 right-1.5 w-5 h-5 bg-red-600 rounded-full text-white text-xs opacity-0 group-hover:opacity-100 flex items-center justify-center hover:bg-red-700"
-                            onClick={(e) => { e.stopPropagation(); unequip(slot.id as SlotId); }}
-                            title="Unequip"
-                          >x</button>
-                        )}
-                      </div>
-                    );
-                  })}
+                  {EQUIP_RIGHT_COL.map(s => renderSlot(s.id, s.name))}
                 </div>
               </div>
 
               {/* Bottom Row - Weapons */}
               <div className="grid grid-cols-4 gap-3">
-                {[
-                  { id: 'mainHand', name: 'R HAND' },
-                  { id: 'offHand', name: 'L HAND' },
-                  { id: 'twoHand', name: '2 HAND' },
-                  { id: 'ranged', name: 'RANGED' },
-                ].map(slot => {
-                  const equipped = template.slots[slot.id as SlotId];
-                  const erc = equipped ? getRealmColors(equipped.realm) : null;
-                  // Dim 1H slots when 2H is equipped, and vice versa
+                {(() => {
                   const has2H = !!template.slots['twoHand'];
                   const has1H = !!template.slots['mainHand'] || !!template.slots['offHand'];
-                  const dimmed = (has2H && (slot.id === 'mainHand' || slot.id === 'offHand'))
-                    || (has1H && slot.id === 'twoHand');
-                  return (
-                    <div key={slot.id} className={`relative border rounded p-2.5 group min-h-[52px] ${dimmed ? 'opacity-40' : ''} ${erc ? `${erc.bg} ${erc.border} border-l-[3px]` : 'bg-gray-800 border-gray-700'}`}>
-                      <div className="text-[10px] font-bold text-gray-400 mb-1.5 leading-tight">{slot.name}</div>
-                      <div className="text-xs text-gray-300 line-clamp-2 leading-tight pr-5" title={equipped?.name}>{equipped?.name || 'Empty'}</div>
-                      {equipped && (
-                        <button
-                          className="absolute top-1.5 right-1.5 w-5 h-5 bg-red-600 rounded-full text-white text-xs opacity-0 group-hover:opacity-100 flex items-center justify-center hover:bg-red-700"
-                          onClick={(e) => { e.stopPropagation(); unequip(slot.id as SlotId); }}
-                          title="Unequip"
-                        >x</button>
-                      )}
-                    </div>
-                  );
-                })}
+                  return EQUIP_WEAPONS.map(s => {
+                    const dimmed = (has2H && (s.id === 'mainHand' || s.id === 'offHand'))
+                      || (has1H && s.id === 'twoHand');
+                    return renderSlot(s.id, s.name, dimmed);
+                  });
+                })()}
               </div>
             </div>
           </div>
