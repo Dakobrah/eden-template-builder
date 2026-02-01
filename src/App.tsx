@@ -2,6 +2,7 @@ import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import type { Template, Item, SlotId } from '@/types';
 import { calculateStats, generateTemplateReport, calculateItemUtility } from './lib/statsCalculator';
 import { parseItemsXml } from './lib/itemParser';
+import { parseZenkraftTemplate, exportZenkraftTemplate } from './lib/zenkcraft';
 import { XML_POS_TO_SLOTS, TWO_HANDED_WEAPON_TYPES, SHIELD_WEAPON_TYPES, RANGED_WEAPON_TYPES, CLASS_ARMOR_TYPES, CLASS_WEAPON_TYPES, CLASSES_BY_REALM, CLASS_TO_REALM, BONUS_CAPS, SKILL_CAP, WEAPON_TYPE_GROUPS, getSlotDisplay, EQUIP_TOP_ROW, EQUIP_LEFT_COL, EQUIP_RIGHT_COL, EQUIP_WEAPONS } from './lib/constants';
 
 // Realm color tinting utilities
@@ -390,6 +391,43 @@ export default function App() {
     const tpl = decodeShareToTemplate(code.trim());
     if (tpl) setTemplate(tpl);
     else alert('Invalid share code');
+  };
+
+  const importZenkraftFile = async (files: FileList | null) => {
+    if (!files || !files[0]) return;
+    try {
+      const text = await files[0].text();
+      const result = parseZenkraftTemplate(text);
+      if (!result) {
+        alert('Failed to parse Zenkraft template');
+        return;
+      }
+      setTemplate(prev => ({
+        ...prev,
+        name: result.name,
+        characterClass: result.characterClass as Template['characterClass'],
+        realm: result.realm as Template['realm'],
+        level: result.level,
+        slots: { ...result.items },
+        updatedAt: new Date().toISOString(),
+      }));
+    } catch (e) {
+      console.error('Failed importing Zenkraft template', e);
+      alert('Failed to parse Zenkraft template file');
+    }
+  };
+
+  const exportZenkraftFile = () => {
+    const text = exportZenkraftTemplate(template, calculated);
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${template.name.replace(/\s+/g, '_')}_zenkraft.txt`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
   };
 
   const copyShareCode = async (tpl: Template) => {
@@ -966,6 +1004,11 @@ export default function App() {
                   <input type="file" accept="application/json" onChange={e => importTemplatesJson(e.target.files)} className="hidden" />
                 </label>
                 <button className="px-2 py-1 bg-indigo-600 rounded text-xs" onClick={importFromShareCodePrompt}>Share Code</button>
+                <button className="px-2 py-1 bg-purple-600 rounded text-xs" onClick={exportZenkraftFile}>Export ZC</button>
+                <label className="text-xs text-gray-300 px-2 py-1 rounded bg-purple-700 cursor-pointer">
+                  Import ZC
+                  <input type="file" accept=".txt,text/plain" onChange={e => importZenkraftFile(e.target.files)} className="hidden" />
+                </label>
               </div>
               <div className="max-h-40 overflow-auto">
                 {templates.length === 0 && <div className="text-xs text-gray-400">No templates saved</div>}
