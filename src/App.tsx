@@ -1,7 +1,7 @@
 import { useMemo, useState, useCallback, useEffect, useRef } from 'react';
 import type { Template, Item, SlotId } from '@/types';
 import { calculateStats, generateTemplateReport, calculateItemUtility } from './lib/statsCalculator';
-import { parseItemsXml } from './lib/itemParser';
+import { parseNdjson } from './lib/ndjsonParser';
 import { parseZenkraftTemplate, exportZenkraftTemplate } from './lib/zenkcraft';
 import { XML_POS_TO_SLOTS, TWO_HANDED_WEAPON_TYPES, SHIELD_WEAPON_TYPES, RANGED_WEAPON_TYPES, CLASS_ARMOR_TYPES, CLASS_WEAPON_TYPES, CLASSES_BY_REALM, CLASS_TO_REALM, BONUS_CAPS, SKILL_CAP, WEAPON_TYPE_GROUPS, getSlotDisplay, EQUIP_TOP_ROW, EQUIP_LEFT_COL, EQUIP_RIGHT_COL, EQUIP_WEAPONS } from './lib/constants';
 
@@ -15,36 +15,17 @@ const getRealmColors = (realm: string | null | undefined) => realm && REALM_COLO
 
 const generateId = () => `${Date.now()}_${Math.random().toString(36).slice(2,9)}`;
 
-// Cache for parsed XML results to avoid re-fetching on realm filter changes
-const xmlCache = new Map<string, Item[]>();
+// Cache for parsed NDJSON items (loaded once)
+let itemsCache: Item[] | null = null;
 
-async function fetchAndParseXml(url: string): Promise<Item[]> {
-  const cached = xmlCache.get(url);
-  if (cached) return cached;
-  const response = await fetch(url);
+async function fetchItems(): Promise<Item[]> {
+  if (itemsCache) return itemsCache;
+  const response = await fetch('/items/eden_items.ndjson');
   if (!response.ok) return [];
   const text = await response.text();
-  const items = text ? parseItemsXml(text) : [];
-  xmlCache.set(url, items);
-  return items;
+  itemsCache = text ? parseNdjson(text) : [];
+  return itemsCache;
 }
-
-// Realm to XML file mapping
-const REALM_XML_FILES: Record<string, string[]> = {
-  '': [
-    '/moras_db/moras_items_eden_alb.xml',
-    '/moras_db/moras_items_eden_hib.xml',
-    '/moras_db/moras_items_eden_mid.xml',
-  ],
-  'Albion': ['/moras_db/moras_items_eden_alb.xml'],
-  'Hibernia': ['/moras_db/moras_items_eden_hib.xml'],
-  'Midgard': ['/moras_db/moras_items_eden_mid.xml'],
-  'Any': [
-    '/moras_db/moras_items_eden_alb.xml',
-    '/moras_db/moras_items_eden_hib.xml',
-    '/moras_db/moras_items_eden_mid.xml',
-  ],
-};
 
 interface StatFilter {
   stat: string;
@@ -125,23 +106,19 @@ export default function App() {
   const [sortColumn, setSortColumn] = useState<string>('utility');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
 
-  // Auto-load moras_db XMLs based on realm filter (with caching)
+  // Load item database once on mount
   useEffect(() => {
     let cancelled = false;
-    const xmlFiles = REALM_XML_FILES[filterRealm] || REALM_XML_FILES[''];
     setDbLoading(true);
-    Promise.all(xmlFiles.map(url => fetchAndParseXml(url).catch(() => [] as Item[])))
-      .then(results => {
+    fetchItems()
+      .then(items => {
         if (cancelled) return;
-        const all = results.flat();
-        // Deduplicate by id (deterministic from name+position+realm)
-        const seen = new Map<string, Item>();
-        all.forEach(item => { if (!seen.has(item.id)) seen.set(item.id, item); });
-        setDbItems(Array.from(seen.values()));
+        setDbItems(items);
         setDbLoading(false);
-      });
+      })
+      .catch(() => { if (!cancelled) setDbLoading(false); });
     return () => { cancelled = true; };
-  }, [filterRealm]);
+  }, []);
 
   // Collect all known effect IDs from loaded items for autocomplete
   const allEffectIds = useMemo(() => {
@@ -221,9 +198,11 @@ export default function App() {
   const filteredItems = useMemo(() => {
     let result = combinedItems;
 
-    // Realm filtering is handled by XML loading, but for "Any" we filter for null/no realm
+    // Realm filtering
     if (filterRealm === 'Any') {
-      result = result.filter(it => !it.realm || it.realm === null);
+      result = result.filter(it => !it.realm);
+    } else if (filterRealm) {
+      result = result.filter(it => it.realm === filterRealm || !it.realm);
     }
 
     // Filter by slot/position (supports WT_ prefix for weapon type filtering)

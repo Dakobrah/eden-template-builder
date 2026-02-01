@@ -17,7 +17,10 @@
       "Bash(npm outdated:*)",
       "Bash(npm uninstall:*)",
       "Bash(del postcss.config.js tailwind.config.js)",
-      "Bash(npx eslint:*)"
+      "Bash(npx eslint:*)",
+      "Bash(powershell -Command \"Get-Content items\\\\eden_items.ndjson | ForEach-Object { \\($_| ConvertFrom-Json\\).item_type } | Sort-Object -Unique\")",
+      "Bash(powershell -Command:*)",
+      "Bash(python:*)"
     ]
   }
 }
