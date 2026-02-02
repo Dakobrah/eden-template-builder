@@ -85,6 +85,13 @@ export interface ItemEffects {
   [key: string]: number;
 }
 
+export interface ItemProc {
+  name: string;
+  type: string;
+  attributes: Record<string, string>;
+  source: 'proc' | 'use' | 'reactive' | 'passive';
+}
+
 export interface Item {
   id: string;
   name: string;
@@ -98,6 +105,7 @@ export interface Item {
   damageType?: DamageType;
   effects: ItemEffects;
   classRestrictions: string[];
+  procs?: ItemProc[];
   origin?: string;
   onlineUrl?: string;
 }

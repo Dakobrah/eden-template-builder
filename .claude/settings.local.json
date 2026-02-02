@@ -20,7 +20,10 @@
       "Bash(npx eslint:*)",
       "Bash(powershell -Command \"Get-Content items\\\\eden_items.ndjson | ForEach-Object { \\($_| ConvertFrom-Json\\).item_type } | Sort-Object -Unique\")",
       "Bash(powershell -Command:*)",
-      "Bash(python:*)"
+      "Bash(python:*)",
+      "Bash(dir:*)",
+      "Bash(npm run test:*)",
+      "Bash(npm run lint)"
     ]
   }
 }

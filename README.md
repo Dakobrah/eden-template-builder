@@ -4,7 +4,7 @@ Template builder for Dark Age of Camelot on the Eden freeshard. Built with React
 
 ## Features
 
-- **Bundled item database** -- Moras XML exports for all three realms are included under `public/moras_db/` and auto-loaded based on the selected realm filter.
+- **Bundled item database** -- NDJSON item database compiled from Moras XML exports, auto-loaded at runtime.
 - **Realm color tinting** -- Items and UI elements are tinted by realm: red for Albion, green for Hibernia, blue for Midgard.
 - **Class-aware filtering** -- Selecting a class automatically filters items to compatible armor and weapon types. Classes are grouped by realm in the dropdown.
 - **Slot filtering** -- Filter by slot grouped into Armor, Jewelry, and Weapons. Weapon sub-filters include Slash, Crush, Thrust, Two-Handed, Flexible, Shield, and Ranged.
@@ -16,6 +16,7 @@ Template builder for Dark Age of Camelot on the Eden freeshard. Built with React
 - **Sortable item table** -- Click column headers to sort by Name, Level, or Utility.
 - **Weapon slot rules** -- Equipping a two-handed weapon clears main/off-hand and vice versa. Ranged is independent.
 - **Template management** -- Save, load, export/import templates as JSON. Share templates via compact Base64 share codes.
+- **Zenkcraft format** -- Import and export templates in Zenkcraft template builder format.
 
 ## Quick start
 
@@ -41,14 +42,62 @@ npm run build
 npm run preview
 ```
 
+## Docker
+
+Build and run with Docker Compose:
+
+```bash
+docker compose up -d
+```
+
+The app will be available at http://localhost:8080.
+
+Or build and run manually:
+
+```bash
+docker build -t daoc-template-builder .
+docker run -p 8080:80 daoc-template-builder
+```
+
+The Docker image uses a multi-stage build (Node.js for build, nginx for serving) and includes gzip compression and SPA routing.
+
+## Architecture
+
+The codebase follows a layered architecture:
+
+- **Services** (OOP) -- Business logic classes with static methods for equipment management, item filtering, template CRUD, and stats calculation.
+- **Hooks** -- Custom React hooks that compose services with React state management. Each hook owns a specific domain (template, items, filters).
+- **Components** -- Focused UI components that receive data and callbacks via props. No business logic in components.
+- **Lib** -- Pure utility libraries for parsing, constants, and data transformation.
+
 ## Project layout
 
-- `src/App.tsx` -- Main UI component with all state management, filtering, and rendering
-- `src/lib/constants.ts` -- Game data: caps, slot definitions, effect lists, class/armor/weapon mappings, weapon type groups
-- `src/lib/statsCalculator.ts` -- Stat aggregation, cap enforcement, utility calculation, report generation
-- `src/lib/itemParser.ts` -- XML parser for Moras item database exports
-- `src/types/index.ts` -- TypeScript type definitions for all game entities
-- `public/moras_db/` -- Bundled Moras XML database files (one per realm)
+- `src/App.tsx` -- Root component, composes panels and hooks
+- `src/components/` -- UI components organized by panel
+  - `Header.tsx` -- App header with search and actions
+  - `ItemsPanel.tsx` -- Item browser with filtering, sorting, pagination
+  - `EquipmentPanel.tsx` -- Equipment slot grid
+  - `StatsPanel.tsx` -- Stats, resists, bonuses, skills, procs display
+  - `TemplatePanel.tsx` -- Template CRUD, import/export, sharing
+- `src/hooks/` -- Custom React hooks
+  - `useTemplate.ts` -- Template state and operations
+  - `useItems.ts` -- Item database loading and owned items
+  - `useFilters.ts` -- Filter, sort, pagination state
+  - `useLocalStorage.ts` -- Generic localStorage persistence hook
+- `src/services/` -- Business logic service classes (OOP)
+  - `EquipmentManager.ts` -- Slot assignment, weapon conflict rules
+  - `ItemFilterService.ts` -- Multi-criteria item filtering
+  - `TemplateManager.ts` -- Template CRUD, persistence, sharing
+- `src/lib/` -- Pure utility libraries
+  - `constants.ts` -- Game data, caps, mappings (single source of truth)
+  - `statsCalculator.ts` -- Stat aggregation and utility calculation
+  - `ndjsonParser.ts` -- NDJSON item database parser
+  - `itemParser.ts` -- XML item parser (Moras format)
+  - `zenkcraft.ts` -- Zenkcraft template import/export
+  - `domUtils.ts` -- Cross-platform DOM helper functions
+- `src/types/index.ts` -- TypeScript type definitions
+- `public/items/` -- NDJSON item database
+- `public/moras_db/` -- Original Moras XML database files
 
 ## Using the app
 
@@ -64,6 +113,7 @@ npm run preview
 - **Save Current** -- Save the active template with a name.
 - **Export / Import** -- Export all saved templates as JSON, or import from a JSON file.
 - **Share Code** -- Copy a compact Base64-encoded share code for any template. Paste a share code to import.
+- **Export ZC / Import ZC** -- Export or import templates in Zenkcraft format.
 
 ## Tests
 
@@ -77,4 +127,4 @@ Run with `npm run test`.
 ## Notes
 
 - Templates and owned items are persisted in `localStorage`.
-- The item database is served statically from `public/moras_db/` and fetched at runtime.
+- The item database is served statically from `public/items/` and fetched at runtime.

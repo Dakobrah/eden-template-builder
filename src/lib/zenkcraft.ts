@@ -1,141 +1,25 @@
-import type { Template, Item, SlotId, XmlPosition, Realm, CalculatedStats } from '@/types';
+import type { Template, Item, XmlPosition, Realm, CalculatedStats } from '@/types';
 import { calculateItemUtility } from './statsCalculator';
-import { ALL_SLOTS } from './constants';
-
-// ---- Slot Mappings ----
-
-const ZENKCRAFT_SLOT_MAP: Record<string, SlotId> = {
-  'Helmet': 'head',
-  'Hands': 'hands',
-  'Torso': 'chest',
-  'Arms': 'arms',
-  'Feet': 'feet',
-  'Legs': 'legs',
-  'Right Hand': 'mainHand',
-  'Left Hand': 'offHand',
-  'Two Handed': 'twoHand',
-  'Ranged': 'ranged',
-  'Neck': 'necklace',
-  'Cloak': 'cloak',
-  'Jewelry': 'gem',
-  'Waist': 'belt',
-  'L. Ring': 'ring1',
-  'R. Ring': 'ring2',
-  'L. Wrist': 'bracer1',
-  'R. Wrist': 'bracer2',
-  'Mythical': 'mythirian',
-};
-
-const EXPORT_SLOT_ORDER: { slotId: SlotId; zcName: string }[] = [
-  { slotId: 'head', zcName: 'Helmet' },
-  { slotId: 'hands', zcName: 'Hands' },
-  { slotId: 'chest', zcName: 'Torso' },
-  { slotId: 'arms', zcName: 'Arms' },
-  { slotId: 'feet', zcName: 'Feet' },
-  { slotId: 'legs', zcName: 'Legs' },
-  { slotId: 'mainHand', zcName: 'Right Hand' },
-  { slotId: 'offHand', zcName: 'Left Hand' },
-  { slotId: 'twoHand', zcName: 'Two Handed' },
-  { slotId: 'ranged', zcName: 'Ranged' },
-  { slotId: 'necklace', zcName: 'Neck' },
-  { slotId: 'cloak', zcName: 'Cloak' },
-  { slotId: 'gem', zcName: 'Jewelry' },
-  { slotId: 'belt', zcName: 'Waist' },
-  { slotId: 'ring1', zcName: 'L. Ring' },
-  { slotId: 'ring2', zcName: 'R. Ring' },
-  { slotId: 'bracer1', zcName: 'L. Wrist' },
-  { slotId: 'bracer2', zcName: 'R. Wrist' },
-  { slotId: 'mythirian', zcName: 'Mythical' },
-];
-
-// ---- Stat/Effect Name Mappings ----
-
-const STAT_NAME_TO_ID: Record<string, string> = {
-  'Strength': 'STRENGTH',
-  'Constitution': 'CONSTITUTION',
-  'Dexterity': 'DEXTERITY',
-  'Quickness': 'QUICKNESS',
-  'Intelligence': 'INTELLIGENCE',
-  'Piety': 'PIETY',
-  'Empathy': 'EMPATHY',
-  'Charisma': 'CHARISMA',
-  'Acuity': 'ACUITY',
-  'Hit Points': 'HITPOINTS',
-  'Power': 'POWER',
-};
-
-const STAT_ID_TO_NAME: Record<string, string> = Object.fromEntries(
-  Object.entries(STAT_NAME_TO_ID).map(([k, v]) => [v, k])
-);
-
-const RESIST_NAME_TO_ID: Record<string, string> = {
-  'Crush': 'RES_CRUSH',
-  'Slash': 'RES_SLASH',
-  'Thrust': 'RES_THRUST',
-  'Heat': 'RES_HEAT',
-  'Cold': 'RES_COLD',
-  'Spirit': 'RES_SPIRIT',
-  'Body': 'RES_BODY',
-  'Matter': 'RES_MATTER',
-  'Energy': 'RES_ENERGY',
-};
-
-const RESIST_ID_TO_NAME: Record<string, string> = Object.fromEntries(
-  Object.entries(RESIST_NAME_TO_ID).map(([k, v]) => [v, k])
-);
-
-const BONUS_NAME_TO_ID: Record<string, string> = {
-  'Melee Damage': 'MELEE_DAMAGE_BONUS',
-  'Spell Damage': 'SPELL_DAMAGE_BONUS',
-  'Style Damage': 'STYLE_DAMAGE_BONUS',
-  'Melee Speed': 'MELEE_SPEED_BONUS',
-  'Casting Speed': 'CASTING_SPEED_BONUS',
-  'Spell Range': 'SPELL_RANGE_BONUS',
-  'Healing Effectiveness': 'HEALING_BONUS',
-  'Healing': 'HEALING_BONUS',
-  'Power Pool': 'POWER_PERCENTAGE_BONUS',
-  'Power Percentage': 'POWER_PERCENTAGE_BONUS',
-  'Armor Factor': 'AF_BONUS',
-  'AF': 'AF_BONUS',
-  'Fatigue': 'FATIGUE',
-  'Endurance': 'FATIGUE',
-  'Spell Duration': 'SPELL_DURATION_BONUS',
-  'Debuff Effectiveness': 'REDUCE_MAGIC_RESISTS',
-  'Resist Pierce': 'REDUCE_MAGIC_RESISTS',
-  'Arcane Siphon': 'ARCANE_SIPHON',
-  'All Focus': 'ALL_MAGIC_FOCUS',
-  'Magic Focus': 'ALL_MAGIC_FOCUS',
-  'All Melee': 'ALL_MELEE_BONUS',
-  'All Magic': 'ALL_MAGIC_BONUS',
-  'All Archery': 'ALL_ARCHERY_BONUS',
-  'All Dual Wield': 'ALL_DUAL_WIELD_BONUS',
-};
-
-const BONUS_ID_TO_NAME: Record<string, string> = {
-  'MELEE_DAMAGE_BONUS': 'Melee Damage',
-  'SPELL_DAMAGE_BONUS': 'Spell Damage',
-  'STYLE_DAMAGE_BONUS': 'Style Damage',
-  'MELEE_SPEED_BONUS': 'Melee Speed',
-  'CASTING_SPEED_BONUS': 'Casting Speed',
-  'SPELL_RANGE_BONUS': 'Spell Range',
-  'HEALING_BONUS': 'Healing Effectiveness',
-  'POWER_PERCENTAGE_BONUS': 'Power Pool',
-  'AF_BONUS': 'Armor Factor',
-  'FATIGUE': 'Fatigue',
-  'SPELL_DURATION_BONUS': 'Spell Duration',
-  'REDUCE_MAGIC_RESISTS': 'Resist Pierce',
-  'ARCANE_SIPHON': 'Arcane Siphon',
-  'ALL_MAGIC_FOCUS': 'All Focus',
-  'ALL_MELEE_BONUS': 'All Melee',
-  'ALL_MAGIC_BONUS': 'All Magic',
-  'ALL_ARCHERY_BONUS': 'All Archery',
-  'ALL_DUAL_WIELD_BONUS': 'All Dual Wield',
-};
+import {
+  ALL_SLOTS,
+  ZENKCRAFT_SLOT_NAMES,
+  ZENKCRAFT_NAME_TO_SLOT,
+  EFFECT_FULL_NAMES,
+  FULL_NAME_TO_EFFECT,
+  ZENKCRAFT_ALIASES,
+} from './constants';
 
 // ---- SlotId to XmlPosition lookup ----
 
 const SLOT_XMLPOS: Record<string, XmlPosition> = {};
 ALL_SLOTS.forEach(s => { SLOT_XMLPOS[s.id] = s.xmlPos; });
+
+// ---- Combined name-to-ID map (canonical names + aliases) ----
+
+const NAME_TO_EFFECT_ID: Record<string, string> = {
+  ...FULL_NAME_TO_EFFECT,
+  ...ZENKCRAFT_ALIASES,
+};
 
 // ---- Effect Resolution ----
 
@@ -143,22 +27,22 @@ function resolveEffectId(type: string, name: string): string | null {
   const n = name.trim();
   switch (type) {
     case 'Stat':
-      return STAT_NAME_TO_ID[n] || n.toUpperCase();
+      return NAME_TO_EFFECT_ID[n] || n.toUpperCase();
     case 'H.P.':
       return 'HITPOINTS';
     case 'Power':
       return 'POWER';
     case 'Resist':
-      return RESIST_NAME_TO_ID[n] || `RES_${n.toUpperCase()}`;
+      return NAME_TO_EFFECT_ID[n] || `RES_${n.toUpperCase()}`;
     case 'Skill':
       return n.toUpperCase().replace(/\s+/g, '_');
     case 'Bonus':
-      return BONUS_NAME_TO_ID[n] || n.toUpperCase().replace(/\s+/g, '_');
+      return NAME_TO_EFFECT_ID[n] || n.toUpperCase().replace(/\s+/g, '_');
     case 'Stat Cap':
     case 'H.P. Cap':
     case 'Power Cap': {
       const statName = n.replace(/^Cap\s+/i, '');
-      const statId = STAT_NAME_TO_ID[statName] || statName.toUpperCase().replace(/\s+/g, '_');
+      const statId = NAME_TO_EFFECT_ID[statName] || statName.toUpperCase().replace(/\s+/g, '_');
       return `CAP_${statId}`;
     }
     default:
@@ -167,25 +51,37 @@ function resolveEffectId(type: string, name: string): string | null {
 }
 
 function effectToZenkraft(effectId: string): { type: string; name: string; suffix: string } {
-  if (STAT_ID_TO_NAME[effectId]) {
-    if (effectId === 'HITPOINTS') return { type: 'H.P.', name: 'Hit Points', suffix: '' };
-    return { type: 'Stat', name: STAT_ID_TO_NAME[effectId], suffix: '' };
+  const displayName = EFFECT_FULL_NAMES[effectId];
+
+  // Stats
+  if (effectId === 'HITPOINTS') return { type: 'H.P.', name: 'Hit Points', suffix: '' };
+  if (effectId === 'POWER') return { type: 'Stat', name: 'Power', suffix: '' };
+  if (displayName && ['STRENGTH', 'CONSTITUTION', 'DEXTERITY', 'QUICKNESS', 'INTELLIGENCE', 'PIETY', 'EMPATHY', 'CHARISMA', 'ACUITY'].includes(effectId)) {
+    return { type: 'Stat', name: displayName, suffix: '' };
   }
-  if (RESIST_ID_TO_NAME[effectId]) {
-    return { type: 'Resist', name: RESIST_ID_TO_NAME[effectId], suffix: '%' };
+
+  // Resists
+  if (effectId.startsWith('RES_') && displayName) {
+    return { type: 'Resist', name: displayName, suffix: '%' };
   }
+
+  // Caps
   if (effectId.startsWith('CAP_')) {
-    const statId = effectId.slice(4);
-    if (statId === 'HITPOINTS') return { type: 'H.P. Cap', name: 'Cap Hit Points', suffix: '' };
-    if (statId === 'POWER') return { type: 'Power Cap', name: 'Cap Power', suffix: '' };
-    const statName = STAT_ID_TO_NAME[statId] || statId;
-    return { type: 'Stat Cap', name: `Cap ${statName}`, suffix: '' };
+    const baseId = effectId.slice(4);
+    if (baseId === 'HITPOINTS') return { type: 'H.P. Cap', name: 'Cap Hit Points', suffix: '' };
+    if (baseId === 'POWER') return { type: 'Power Cap', name: 'Cap Power', suffix: '' };
+    const baseName = EFFECT_FULL_NAMES[baseId] || baseId;
+    return { type: 'Stat Cap', name: `Cap ${baseName}`, suffix: '' };
   }
-  if (BONUS_ID_TO_NAME[effectId]) {
-    return { type: 'Bonus', name: BONUS_ID_TO_NAME[effectId], suffix: '' };
+
+  // Bonuses
+  if (displayName) {
+    return { type: 'Bonus', name: displayName, suffix: '' };
   }
-  const displayName = effectId.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-  return { type: 'Skill', name: displayName, suffix: '' };
+
+  // Skills / fallback
+  const fallbackName = effectId.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  return { type: 'Skill', name: fallbackName, suffix: '' };
 }
 
 // ---- Import (Parse) ----
@@ -227,8 +123,8 @@ export function parseZenkraftTemplate(text: string): ZenkraftParseResult | null 
     if (!slotMatch) continue;
 
     const zcSlotName = slotMatch[1].trim();
-    const slotId = ZENKCRAFT_SLOT_MAP[zcSlotName];
-    if (!slotId) continue; // Skip unknown slots like "Bonuses"
+    const slotId = ZENKCRAFT_NAME_TO_SLOT[zcSlotName];
+    if (!slotId) continue;
     foundSlots = true;
 
     let itemName = '';
@@ -311,8 +207,8 @@ export function exportZenkraftTemplate(template: Template, calculated: Calculate
   ];
   for (const statId of statOrder) {
     const data = calculated.stats[statId];
-    const displayName = STAT_ID_TO_NAME[statId] || statId;
-    lines.push(data ? `${data.value} / ${data.cap} ${displayName}` : `0 / 75 ${displayName}`);
+    const name = EFFECT_FULL_NAMES[statId] || statId;
+    lines.push(data ? `${data.value} / ${data.cap} ${name}` : `0 / 75 ${name}`);
   }
   lines.push('');
 
@@ -321,7 +217,7 @@ export function exportZenkraftTemplate(template: Template, calculated: Calculate
   if (activeBonuses.length > 0) {
     lines.push('============ Bonuses ============');
     for (const [bonusId, value] of activeBonuses) {
-      lines.push(`${value} ${BONUS_ID_TO_NAME[bonusId] || bonusId.replace(/_/g, ' ')}`);
+      lines.push(`${value} ${EFFECT_FULL_NAMES[bonusId] || bonusId.replace(/_/g, ' ')}`);
     }
     lines.push('');
   }
@@ -334,8 +230,8 @@ export function exportZenkraftTemplate(template: Template, calculated: Calculate
   ];
   for (const resistId of resistOrder) {
     const data = calculated.resists[resistId];
-    const displayName = RESIST_ID_TO_NAME[resistId] || resistId.replace('RES_', '');
-    lines.push(data ? `${data.value} / ${data.cap} ${displayName}` : `0 / 26 ${displayName}`);
+    const name = EFFECT_FULL_NAMES[resistId] || resistId.replace('RES_', '');
+    lines.push(data ? `${data.value} / ${data.cap} ${name}` : `0 / 26 ${name}`);
   }
   lines.push('');
 
@@ -344,14 +240,14 @@ export function exportZenkraftTemplate(template: Template, calculated: Calculate
   if (activeSkills.length > 0) {
     lines.push('============ Skills ============');
     for (const [skillId, value] of activeSkills) {
-      const displayName = skillId.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-      lines.push(`${value} / 11 ${displayName}`);
+      const name = skillId.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      lines.push(`${value} / 11 ${name}`);
     }
     lines.push('');
   }
 
   // Item slots
-  EXPORT_SLOT_ORDER.forEach((slot, index) => {
+  ZENKCRAFT_SLOT_NAMES.forEach((slot, index) => {
     const item = template.slots[slot.slotId];
     lines.push(`Slot ${index + 1}: ${slot.zcName}`);
     lines.push(`Name: ${item?.name || ''}`);

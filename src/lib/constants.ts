@@ -1,4 +1,4 @@
-import type { SlotDefinition, ArmorType } from '@/types';
+import type { SlotDefinition, ArmorType, SlotId } from '@/types';
 
 export const REALMS = ['Albion', 'Hibernia', 'Midgard'] as const;
 
@@ -425,3 +425,82 @@ export const EQUIP_WEAPONS = [
   { id: 'twoHand', name: '2 HAND' },
   { id: 'ranged', name: 'RANGED' },
 ] as const;
+
+// ---- Realm Colors ----
+
+export const REALM_COLORS: Record<string, { border: string; bg: string; text: string }> = {
+  Albion:   { border: 'border-l-red-500/60',   bg: 'bg-red-950/20',   text: 'text-red-400' },
+  Hibernia: { border: 'border-l-green-500/60', bg: 'bg-green-950/20', text: 'text-green-400' },
+  Midgard:  { border: 'border-l-blue-500/60',  bg: 'bg-blue-950/20',  text: 'text-blue-400' },
+};
+
+export function getRealmColors(realm: string | null | undefined) {
+  return realm && REALM_COLORS[realm] ? REALM_COLORS[realm] : null;
+}
+
+// ---- Zenkcraft Slot Mappings (single source of truth) ----
+
+export const ZENKCRAFT_SLOT_NAMES: { slotId: SlotId; zcName: string }[] = [
+  { slotId: 'head', zcName: 'Helmet' },
+  { slotId: 'hands', zcName: 'Hands' },
+  { slotId: 'chest', zcName: 'Torso' },
+  { slotId: 'arms', zcName: 'Arms' },
+  { slotId: 'feet', zcName: 'Feet' },
+  { slotId: 'legs', zcName: 'Legs' },
+  { slotId: 'mainHand', zcName: 'Right Hand' },
+  { slotId: 'offHand', zcName: 'Left Hand' },
+  { slotId: 'twoHand', zcName: 'Two Handed' },
+  { slotId: 'ranged', zcName: 'Ranged' },
+  { slotId: 'necklace', zcName: 'Neck' },
+  { slotId: 'cloak', zcName: 'Cloak' },
+  { slotId: 'gem', zcName: 'Jewelry' },
+  { slotId: 'belt', zcName: 'Waist' },
+  { slotId: 'ring1', zcName: 'L. Ring' },
+  { slotId: 'ring2', zcName: 'R. Ring' },
+  { slotId: 'bracer1', zcName: 'L. Wrist' },
+  { slotId: 'bracer2', zcName: 'R. Wrist' },
+  { slotId: 'mythirian', zcName: 'Mythical' },
+];
+
+export const ZENKCRAFT_NAME_TO_SLOT: Record<string, SlotId> = Object.fromEntries(
+  ZENKCRAFT_SLOT_NAMES.map(s => [s.zcName, s.slotId])
+) as Record<string, SlotId>;
+
+// ---- Effect Full Names (ID <-> display name, single source of truth) ----
+
+export const EFFECT_FULL_NAMES: Record<string, string> = {
+  // Stats
+  STRENGTH: 'Strength', CONSTITUTION: 'Constitution', DEXTERITY: 'Dexterity',
+  QUICKNESS: 'Quickness', INTELLIGENCE: 'Intelligence', PIETY: 'Piety',
+  EMPATHY: 'Empathy', CHARISMA: 'Charisma', ACUITY: 'Acuity',
+  HITPOINTS: 'Hit Points', POWER: 'Power',
+  // Resists
+  RES_CRUSH: 'Crush', RES_SLASH: 'Slash', RES_THRUST: 'Thrust',
+  RES_HEAT: 'Heat', RES_COLD: 'Cold', RES_SPIRIT: 'Spirit',
+  RES_BODY: 'Body', RES_MATTER: 'Matter', RES_ENERGY: 'Energy',
+  // Bonuses
+  MELEE_DAMAGE_BONUS: 'Melee Damage', SPELL_DAMAGE_BONUS: 'Spell Damage',
+  STYLE_DAMAGE_BONUS: 'Style Damage', MELEE_SPEED_BONUS: 'Melee Speed',
+  CASTING_SPEED_BONUS: 'Casting Speed', SPELL_RANGE_BONUS: 'Spell Range',
+  HEALING_BONUS: 'Healing Effectiveness', POWER_PERCENTAGE_BONUS: 'Power Pool',
+  AF_BONUS: 'Armor Factor', FATIGUE: 'Fatigue',
+  SPELL_DURATION_BONUS: 'Spell Duration', REDUCE_MAGIC_RESISTS: 'Resist Pierce',
+  ARCANE_SIPHON: 'Arcane Siphon', ALL_MAGIC_FOCUS: 'All Focus',
+  ALL_MELEE_BONUS: 'All Melee', ALL_MAGIC_BONUS: 'All Magic',
+  ALL_ARCHERY_BONUS: 'All Archery', ALL_DUAL_WIELD_BONUS: 'All Dual Wield',
+  BUFF_EFFECTIVENESS: 'Buff Effectiveness',
+};
+
+export const FULL_NAME_TO_EFFECT: Record<string, string> = Object.fromEntries(
+  Object.entries(EFFECT_FULL_NAMES).map(([id, name]) => [name, id])
+);
+
+// Zenkcraft-specific aliases (multiple display names mapping to the same ID)
+export const ZENKCRAFT_ALIASES: Record<string, string> = {
+  'Healing': 'HEALING_BONUS',
+  'Power Percentage': 'POWER_PERCENTAGE_BONUS',
+  'AF': 'AF_BONUS',
+  'Endurance': 'FATIGUE',
+  'Debuff Effectiveness': 'REDUCE_MAGIC_RESISTS',
+  'Magic Focus': 'ALL_MAGIC_FOCUS',
+};

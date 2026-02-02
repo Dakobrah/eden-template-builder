@@ -28,9 +28,9 @@ export default tseslint.config(
       'react-hooks/set-state-in-effect': 'warn',
     },
   },
-  // XML parser uses `any` for cross-platform DOM interop (browser DOMParser vs xmldom)
+  // DOM interop files use `any` for cross-platform DOM (browser DOMParser vs xmldom)
   {
-    files: ['**/itemParser.ts'],
+    files: ['**/itemParser.ts', '**/domUtils.ts'],
     rules: {
       '@typescript-eslint/no-explicit-any': 'off',
     },

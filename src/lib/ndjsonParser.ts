@@ -1,4 +1,4 @@
-import type { Item, Realm, XmlPosition, ArmorType, WeaponType, DamageType } from '@/types';
+import type { Item, ItemProc, Realm, XmlPosition, ArmorType, WeaponType, DamageType } from '@/types';
 
 // ---- Realm codes ----
 const REALM_MAP: Record<string, Realm | null> = {
@@ -162,6 +162,37 @@ const BONUS_TYPE_MAP: Record<number, string> = {
   253: 'REALM_POINT_BONUS', 254: 'ARCANE_SIPHON',
 };
 
+// ---- Proc JSON shape from NDJSON ----
+interface ProcJson {
+  Name: string;
+  Attributes: [string, string][];
+}
+
+const PROC_FIELDS: { key: string; source: ItemProc['source'] }[] = [
+  { key: 'proc1_json', source: 'proc' },
+  { key: 'proc2_json', source: 'proc' },
+  { key: 'react1_json', source: 'reactive' },
+  { key: 'react2_json', source: 'reactive' },
+  { key: 'use1_json', source: 'use' },
+  { key: 'use2_json', source: 'use' },
+  { key: 'passive_json', source: 'passive' },
+];
+
+function parseProcs(raw: Record<string, string | null>): ItemProc[] {
+  const procs: ItemProc[] = [];
+  for (const { key, source } of PROC_FIELDS) {
+    const json = raw[key];
+    if (!json) continue;
+    try {
+      const p: ProcJson = JSON.parse(json);
+      const attributes: Record<string, string> = {};
+      for (const [k, v] of p.Attributes || []) attributes[k] = v;
+      procs.push({ name: p.Name, type: attributes['Type'] || '', attributes, source });
+    } catch { /* skip malformed */ }
+  }
+  return procs;
+}
+
 // ---- NDJSON raw shape ----
 interface NdjsonRaw {
   id: string;
@@ -179,6 +210,13 @@ interface NdjsonRaw {
   bonus_types: string | null;
   bonus_values: string | null;
   allowed_classes: string;
+  proc1_json: string | null;
+  proc2_json: string | null;
+  react1_json: string | null;
+  react2_json: string | null;
+  use1_json: string | null;
+  use2_json: string | null;
+  passive_json: string | null;
 }
 
 function resolveWeaponType(raw: NdjsonRaw): WeaponType | undefined {
@@ -239,6 +277,8 @@ function parseNdjsonItem(raw: NdjsonRaw): Item | null {
   const weaponType = position === 'WEAPONS' ? resolveWeaponType(raw) : undefined;
   const damageType = position === 'WEAPONS' ? DAMAGE_TYPE_MAP[raw.damage_type] : undefined;
 
+  const procs = parseProcs(raw as unknown as Record<string, string | null>);
+
   const realmStr = (realm || 'any').toLowerCase();
   const id = `${realmStr}_${position.toLowerCase()}_${raw.name.replace(/\s+/g, '_').toLowerCase()}`;
 
@@ -254,6 +294,7 @@ function parseNdjsonItem(raw: NdjsonRaw): Item | null {
     damageType,
     effects,
     classRestrictions: parseClassRestrictions(raw.allowed_classes),
+    procs: procs.length > 0 ? procs : undefined,
   };
 }
 
